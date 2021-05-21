@@ -1,226 +1,124 @@
-/*	$NetBSD: signal.h,v 1.54 2010/08/27 08:40:38 christos Exp $	*/
-
-/*-
- * Copyright (c) 1991, 1993
- *	The Regents of the University of California.  All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- *
- *	@(#)signal.h	8.3 (Berkeley) 3/30/94
+/* The <signal.h> header defines all the ANSI and POSIX signals.
+ * MINIX supports all the signals required by POSIX. They are defined below.
+ * Some additional signals are also supported.
  */
 
-#ifndef _SIGNAL_H_
-#define _SIGNAL_H_
+#ifndef _SIGNAL_H
+#define _SIGNAL_H
 
-#include <sys/cdefs.h>
-#include <sys/featuretest.h>
-
-#if defined(_POSIX_C_SOURCE) || defined(_XOPEN_SOURCE) || \
-    defined(_NETBSD_SOURCE)
+#ifndef _ANSI_H
+#include <ansi.h>
+#endif
+#ifdef _POSIX_SOURCE
+#ifndef _TYPES_H
 #include <sys/types.h>
 #endif
-
-#include <sys/signal.h>
-
-#if defined(_NETBSD_SOURCE)
-extern const char *const *sys_signame __RENAME(__sys_signame14);
-#ifndef __SYS_SIGLIST_DECLARED
-#define __SYS_SIGLIST_DECLARED
-/* also in unistd.h */
-extern const char *const *sys_siglist __RENAME(__sys_siglist14);
-#endif /* __SYS_SIGLIST_DECLARED */
-extern const int sys_nsig __RENAME(__sys_nsig14);
 #endif
 
-__BEGIN_DECLS
-int	raise(int);
-#if defined(_POSIX_C_SOURCE) || defined(_XOPEN_SOURCE) || \
-    defined(_NETBSD_SOURCE)
-int	kill(pid_t, int);
-int	__libc_sigaction14(int, const struct sigaction * __restrict,
-	    struct sigaction * __restrict);
+/* Here are types that are closely associated with signal handling. */
+typedef int sig_atomic_t;
 
-#if (_POSIX_C_SOURCE - 0L) >= 199506L || (_XOPEN_SOURCE - 0) >= 500 || \
-    defined(_NETBSD_SOURCE)
-int	pthread_sigmask(int, const sigset_t * __restrict,
-	    sigset_t * __restrict);
-#if !defined(__minix)
-int	pthread_kill(pthread_t, int);
-#endif /* !defined(__minix) */
-int	__libc_thr_sigsetmask(int, const sigset_t * __restrict,
-	    sigset_t * __restrict);
-#ifndef __LIBPTHREAD_SOURCE__
-#define	pthread_sigmask		__libc_thr_sigsetmask
-#endif /* __LIBPTHREAD_SOURCE__ */
+#ifdef _POSIX_SOURCE
+#ifndef _SIGSET_T
+#define _SIGSET_T
+typedef unsigned long sigset_t;
+#endif
 #endif
 
-#ifndef __LIBC12_SOURCE__
-int	sigaction(int, const struct sigaction * __restrict,
-    struct sigaction * __restrict) __RENAME(__sigaction14);
-#if defined(__minix) && !defined(_SYSTEM)
-int	sigaddset(sigset_t *, int) __RENAME(__sigaddset14);
-int	sigdelset(sigset_t *, int) __RENAME(__sigdelset14);
-int	sigemptyset(sigset_t *) __RENAME(__sigemptyset14);
-int	sigfillset(sigset_t *) __RENAME(__sigfillset14);
-int	sigismember(const sigset_t *, int) __RENAME(__sigismember14);
-#endif /* defined(__minix) && !defined(_SYSTEM) */
-int	sigpending(sigset_t *) __RENAME(__sigpending14);
-int	sigprocmask(int, const sigset_t * __restrict, sigset_t * __restrict)
-    __RENAME(__sigprocmask14);
-int	sigsuspend(const sigset_t *) __RENAME(__sigsuspend14);
+/* Regular signals. */
+#define SIGHUP             1	/* hangup */
+#define SIGINT             2	/* interrupt (DEL) */
+#define SIGQUIT            3	/* quit (ASCII FS) */
+#define SIGILL             4	/* illegal instruction */
+#define SIGTRAP            5	/* trace trap (not reset when caught) */
+#define SIGABRT            6	/* IOT instruction */
+#define SIGBUS             7	/* bus error */
+#define SIGFPE             8	/* floating point exception */
+#define SIGKILL            9	/* kill (cannot be caught or ignored) */
+#define SIGUSR1           10	/* user defined signal # 1 */
+#define SIGSEGV           11	/* segmentation violation */
+#define SIGUSR2           12	/* user defined signal # 2 */
+#define SIGPIPE           13	/* write on a pipe with no one to read it */
+#define SIGALRM           14	/* alarm clock */
+#define SIGTERM           15	/* software termination signal from kill */
+#define SIGEMT		  16	/* EMT instruction */
+#define SIGCHLD           17	/* child process terminated or stopped */
+#define SIGWINCH    	  21	/* window size has changed */
 
-#if defined(__c99inline) || defined(__SIGSETOPS_BODY)
-
-#if defined(__SIGSETOPS_BODY)
-#undef	__c99inline
-#define	__c99inline
-#endif
-
-/* note: this appears in both errno.h and signal.h */
-#ifndef __errno
-int *__errno(void);
-#define __errno __errno
-#endif
-
-/* the same as "errno" - but signal.h is not allowed to define that */
-#ifndef ___errno
-#define ___errno (*__errno())
-#endif
-
-#if defined(__minix) && defined(_SYSTEM)
-/* In Minix system code, use alternate versions of the signal mask
- * manipulation functions that do not check signal numbers vs. _NSIG.
- * _NSIG can then represent the user-visible signal set.
+/* POSIX requires the following signals to be defined, even if they are
+ * not supported.  Here are the definitions, but they are not supported.
  */
-#define sigaddset(set, sig)    __sigaddset((set), (sig))
-#define sigdelset(set, sig)    __sigdelset((set), (sig))
-#define sigemptyset(set)       __sigemptyset((set))
-#define sigfillset(set)                __sigfillset((set))
-#define sigismember(set, sig)  __sigismember((set), (sig))
-#else
-__c99inline int
-sigaddset(sigset_t *set, int signo)
-{
-	if (signo <= 0 || signo >= _NSIG) {
-		___errno = 22;			/* EINVAL */
-		return (-1);
-	}
-	__sigaddset(set, signo);
-	return (0);
-}
+#define SIGCONT           18	/* continue if stopped */
+#define SIGSTOP           19	/* stop signal */
+#define SIGTSTP           20	/* interactive stop signal */
+#define SIGTTIN           22	/* background process wants to read */
+#define SIGTTOU           23	/* background process wants to write */
 
-__c99inline int
-sigdelset(sigset_t *set, int signo)
-{
-	if (signo <= 0 || signo >= _NSIG) {
-		___errno = 22;			/* EINVAL */
-		return (-1);
-	}
-	__sigdelset(set, signo);
-	return (0);
-}
+#define _NSIG             23	/* number of signals used */
 
-__c99inline int
-sigismember(const sigset_t *set, int signo)
-{
-	if (signo <= 0 || signo >= _NSIG) {
-		___errno = 22;			/* EINVAL */
-		return (-1);
-	}
-	return (__sigismember(set, signo));
-}
+#ifdef _MINIX
+#define SIGIOT             SIGABRT /* for people who speak PDP-11 */
 
-__c99inline int
-sigemptyset(sigset_t *set)
-{
-	__sigemptyset(set);
-	return (0);
-}
+/* MINIX specific signals. These signals are not used by user proceses, 
+ * but meant to inform system processes, like the PM, about system events.
+ */
+#define SIGKMESS   	  29	/* new kernel message */
+#define SIGKSIG    	  30	/* kernel signal pending */
+#define SIGKSTOP    	  31	/* kernel shutting down */
 
-__c99inline int
-sigfillset(sigset_t *set)
-{
-	__sigfillset(set);
-	return (0);
-}
-#endif /* defined(__minix) && defined(_SYSTEM) */
-#endif /* __c99inline */
-#endif /* !__LIBC12_SOURCE__ */
-
-/*
- * X/Open CAE Specification Issue 4 Version 2
- */      
-#if (defined(_XOPEN_SOURCE) && defined(_XOPEN_SOURCE_EXTENDED)) || \
-    (_XOPEN_SOURCE - 0) >= 500 || defined(_NETBSD_SOURCE)
-int	killpg(pid_t, int);
-int	siginterrupt(int, int);
-int	sigstack(const struct sigstack *, struct sigstack *);
-#ifndef __LIBC12_SOURCE__
-int	sigaltstack(const stack_t * __restrict, stack_t * __restrict)
-    __RENAME(__sigaltstack14);
 #endif
-int	sighold(int);
-int	sigignore(int);
-int	sigpause(int);
-int	sigrelse(int);
-void	(*sigset (int, void (*)(int)))(int);
-#endif /* _XOPEN_SOURCE_EXTENDED || _XOPEN_SOURCE >= 500 || _NETBSD_SOURCE */
 
+/* The sighandler_t type is not allowed unless _POSIX_SOURCE is defined. */
+typedef void _PROTOTYPE( (*__sighandler_t), (int) );
 
-/*
- * X/Open CAE Specification Issue 5; IEEE Std 1003.1b-1993 (POSIX)
- */      
-#if (_POSIX_C_SOURCE - 0) >= 199309L || (_XOPEN_SOURCE - 0) >= 500 || \
-    defined(_NETBSD_SOURCE)
-int	sigwait	(const sigset_t * __restrict, int * __restrict);
-int	sigwaitinfo(const sigset_t * __restrict, siginfo_t * __restrict);
-void	psiginfo(const siginfo_t *, const char *);
+/* Macros used as function pointers. */
+#define SIG_ERR    ((__sighandler_t) -1)	/* error return */
+#define SIG_DFL	   ((__sighandler_t)  0)	/* default signal handling */
+#define SIG_IGN	   ((__sighandler_t)  1)	/* ignore signal */
+#define SIG_HOLD   ((__sighandler_t)  2)	/* block signal */
+#define SIG_CATCH  ((__sighandler_t)  3)	/* catch signal */
+#define SIG_MESS   ((__sighandler_t)  4)	/* pass as message (MINIX) */
 
-#ifndef __LIBC12_SOURCE__
-struct timespec;
-int	sigtimedwait(const sigset_t * __restrict,
-    siginfo_t * __restrict, const struct timespec * __restrict)
-    __RENAME(__sigtimedwait50);
-int	__sigtimedwait(const sigset_t * __restrict,
-    siginfo_t * __restrict, struct timespec * __restrict)
-    __RENAME(____sigtimedwait50);
+#ifdef _POSIX_SOURCE
+struct sigaction {
+  __sighandler_t sa_handler;	/* SIG_DFL, SIG_IGN, or pointer to function */
+  sigset_t sa_mask;		/* signals to be blocked during handler */
+  int sa_flags;			/* special flags */
+};
+
+/* Fields for sa_flags. */
+#define SA_ONSTACK   0x0001	/* deliver signal on alternate stack */
+#define SA_RESETHAND 0x0002	/* reset signal handler when signal caught */
+#define SA_NODEFER   0x0004	/* don't block signal while catching it */
+#define SA_RESTART   0x0008	/* automatic system call restart */
+#define SA_SIGINFO   0x0010	/* extended signal handling */
+#define SA_NOCLDWAIT 0x0020	/* don't create zombies */
+#define SA_NOCLDSTOP 0x0040	/* don't receive SIGCHLD when child stops */
+
+/* POSIX requires these values for use with sigprocmask(2). */
+#define SIG_BLOCK          0	/* for blocking signals */
+#define SIG_UNBLOCK        1	/* for unblocking signals */
+#define SIG_SETMASK        2	/* for setting the signal mask */
+#define SIG_INQUIRE        4	/* for internal use only */
+#endif	/* _POSIX_SOURCE */
+
+/* POSIX and ANSI function prototypes. */
+_PROTOTYPE( int raise, (int _sig)					);
+_PROTOTYPE( __sighandler_t signal, (int _sig, __sighandler_t _func)	);
+
+#ifdef _POSIX_SOURCE
+_PROTOTYPE( int kill, (pid_t _pid, int _sig)				);
+_PROTOTYPE( int sigaction,
+    (int _sig, const struct sigaction *_act, struct sigaction *_oact)	);
+_PROTOTYPE( int sigaddset, (sigset_t *_set, int _sig)			);
+_PROTOTYPE( int sigdelset, (sigset_t *_set, int _sig)			);
+_PROTOTYPE( int sigemptyset, (sigset_t *_set)				);
+_PROTOTYPE( int sigfillset, (sigset_t *_set)				);
+_PROTOTYPE( int sigismember, (const sigset_t *_set, int _sig)		);
+_PROTOTYPE( int sigpending, (sigset_t *_set)				);
+_PROTOTYPE( int sigprocmask,
+	    (int _how, const sigset_t *_set, sigset_t *_oset)		);
+_PROTOTYPE( int sigsuspend, (const sigset_t *_sigmask)			);
 #endif
-#endif /* _POSIX_C_SOURCE >= 200112 || _XOPEN_SOURCE_EXTENDED || ... */
 
-
-#if defined(_NETBSD_SOURCE)
-#ifndef __PSIGNAL_DECLARED
-#define __PSIGNAL_DECLARED
-/* also in unistd.h */
-void	psignal(int, const char *);
-#endif /* __PSIGNAL_DECLARED */
-int	sigblock(int);
-int	sigsetmask(int);
-#endif /* _NETBSD_SOURCE */
-
-#endif	/* _POSIX_C_SOURCE || _XOPEN_SOURCE || _NETBSD_SOURCE */
-__END_DECLS
-
-#endif	/* !_SIGNAL_H_ */
+#endif /* _SIGNAL_H */

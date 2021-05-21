@@ -1,70 +1,25 @@
 # /etc/rc - System startup script run by init before going multiuser.
 
-exec >/dev/log
-exec 2>/dev/log
-exec </dev/null
-
 umask 022
-
-# Same settings as in the default /etc/profile. We do not source this file
-# as the system administrator may decide to change those values for his users.
-RC_TZ=/etc/rc.timezone
-PATH=/usr/local/sbin:/usr/pkg/sbin:/usr/sbin:/sbin:/usr/local/bin:/usr/pkg/bin:/usr/bin:/bin
-
-# Set TERM to minix if not present.
 TERM="${TERM-minix}"
-
+PATH=/usr/local/bin:/bin:/usr/bin:/usr/sbin
+RC_TZ=/etc/rc.timezone
 export TERM PATH
-
-# Local variables
-ARCH="`sysenv arch`"
 
 usage()
 {
-    echo >&2 "Usage: $0 [-saf] autoboot|start|stop|down"
+    echo >&2 "Usage: $0 [-saf] start|stop|down"
     exec intr sh
 }
 
 up()
 {
+    service=$1
+    shift
+
     # Function to dynamically start a system service
-    opt=""
-    prefix=$(expr "$1 " : '\(-\)')
-    if [ "$prefix" = "-" ];
-    then
-         opt=$1
-         shift
-    fi
-    service=$1
-    shift
-
-    service $opt up /service/$service "$@"
-}
-
-edit()
-{
-    # Function to dynamically edit system service settings
-    opt=""
-    prefix=$(expr "$1 " : '\(-\)')
-    if [ "$prefix" = "-" ];
-    then
-         opt=$1
-         shift
-    fi
-    service=$1
-    shift
-
-    # Assume binaries are always in /service or /usr/pkg/service
-    binlocation=/service/$service
-    if [ ! -x $binlocation ]
-    then	binlocation=/usr/pkg/service/$service
-    fi
-
-    # Mostly to find init...
-    if [ ! -x $binlocation ]
-    then	binlocation=/sbin/$service
-    fi
-    service $opt edit $binlocation -label $service "$@" 
+    echo -n " $service"
+    service up /sbin/$service "$@"
 }
 
 while getopts 'saf' opt
@@ -72,36 +27,30 @@ do
     case $opt in
     s)	sflag=t ;;	# Single user
     a)	aflag=t ;;	# Ask for /usr
-    f)	fflag=-f ;;	# Force a full file system check
+    f)	fflag=t ;;	# Force a full file system check
     *)	usage
     esac
 done
 shift `expr $OPTIND - 1`
 
 case "$#:$1" in
-1:start|1:stop|1:down|1:autoboot)
+1:start|1:stop|1:down)
     action=$1
     ;;
 *)  usage
 esac
 
 case $action in
-autoboot|start)
+start)
+    echo ""
+    echo -n "Multiuser startup in progress ...:"
 
     # National keyboard?
     test -f /etc/keymap && loadkeys /etc/keymap
 
-    # options for fsck. default is -r, which prompts the user for repairs.
-    optname=fsckopts
-    fsckopts=-p
-    if sysenv $optname >/dev/null
-    then       fsckopts="`sysenv $optname`"
-    fi
-
-    if [ "`sysenv debug_fkeys`" != 0 ]
-    then
-        up -n is -period 5HZ
-    fi
+    up is -period 5HZ
+    up cmos -dev /dev/cmos -period 5HZ
+    echo .
 
     # Set timezone.
     export TZ=GMT0
@@ -109,65 +58,95 @@ autoboot|start)
     then . "$RC_TZ"
     fi
 
-    # Start real time clock driver & set system time, otherwise default date.
-    up readclock.drv
-    readclock -q || date 201301010000
-
-    # We are not shutting down.
-    rm -f /etc/nologin
+    # Try to read the hardware real-time clock, otherwise do it manually.
+    readclock || intr date -q
 
     # Initialize files.
-    >/var/run/utmp				# /etc/utmp keeps track of logins
-    >/var/run/utmpx				# /etc/utmpx keeps track of logins
+    printroot >/etc/mtab		# /etc/mtab keeps track of mounts
+    >/etc/utmp				# /etc/utmp keeps track of logins
 
-    # Use MFS binary only from kernel image?
-    if [ "`sysenv bin_img`" = 1 ]
-    then
-        bin_img="-i "
-    fi
+    # /etc/fstab lists the root, tmp and usr devices.
+    . /etc/fstab
+
+    # Any swapspace on a device?
+    test "$swap" : '/dev/' && mount -s $swap
 
     # Are we booting from CD?
     bootcd="`/bin/sysenv bootcd`"
 
-    # If booting from CD, mounting is a special case.
-    # We know what to do - only /usr is mounted and it's readonly.
+    # If booting from CD, /usr has to be mounted readonly.
+    # Also, $usr won't be specified correctly in the
+    # fstab (the CD could be anywhere), so we decide
+    # where it is based on sysenv (set by FS when probing for CD).
     if [ "$bootcd" = 1 ]
-    then	usrdev="$cddev"p2
-    		echo "/usr on cd is $usrdev"
-		mount -r $usrdev /usr
-    else	
-    # If we're not booting from CD, fsck + mount using /etc/fstab.
-		fsck -x / $fflag $fsckopts
-		mount -a
+    then	
+    		#imagedev="`/bin/sysenv cdproberoot`"
+    		#usrdev="`expr $imagedev + 1`"
+    		usr_roflag="-r"
+    		usr="$cddev"p2
+    		echo "Setting /usr on cd is $usr"
     fi
-
-    # Unmount and free now defunct ramdisk
-    umount /dev/imgrd > /dev/null || echo "Failed to unmount boot ramdisk"
-    ramdisk 0 /dev/imgrd || echo "Failed to free boot ramdisk"
-
-    # Edit settings for boot system services
-    if [ "`sysenv skip_boot_config`" != 1 ]
+ 
+    # Mount the /usr partition unless this is a single floppy Minix.
+    if [ ! -d /usr/bin ]
     then
-	edit rs
-	edit vm
-	edit pm
-	edit sched
-	edit vfs
-	edit ds
-	edit tty
-	edit memory
-	edit pfs
-	edit init
+	if [ "$aflag" -o "$usr" = unknown ]
+	then
+	    # We need to ask what the /usr du jour is.
+	    intr sh -c '
+		echo -n "Finish the name of device to mount as /usr: /dev/"
+		read usr
+		echo "usr=/dev/$usr" >/tmp/usr'
+	    . /tmp/usr
+	fi
+	mount $usr_roflag $usr /usr || {
+	    echo "\
+Please try to mount something else as /usr, then hit CTRL-D to continue startup.
+Mount $usr /usr failed -- Single user."
+	    intr sh
+	}
+	rm -f /tmp/usr
     fi
+
+    # Check if the system crashed.
+    if shutdown -C
+    then
+	echo
+	echo "The system was not properly shut down.  Checking file systems."
+	fflag=t
+    fi
+
+    if [ "$fflag" ]
+    then
+	umount $usr
+	echo "fsck / - $root"
+	intr fsck -r $root
+	echo "fsck /usr - $usr"
+	intr fsck -r $usr
+	if [ ! -z "$home" ]
+	then	echo "fsck /home - $home"
+		intr fsck -r $home
+	fi
+	mount $usr /usr
+    fi
+
+    if [ ! -z "$home" ]
+    then mount $home /home || echo "WARNING: couldn't mount $home on /home"
+    fi
+
+    # This file is necessary for above 'shutdown -C' check.
+    # (Silence stderr in case of running from cd.)
+    touch /usr/adm/wtmp 2>/dev/null
 
     if [ "$sflag" ]
     then
-	echo "Single user. Press ^D to resume multiuser startup."
+	echo "Single user."
 	intr sh
-	echo
     fi
 
-    echo "Multiuser startup in progress ..."
+    # Any swapspace on a file?
+    test -n "$swap" -a ! "$swap" : '/dev/' && mount -s $swap
+
 
     case "`printroot -r`":$bootcd in
     /dev/ram:)
@@ -178,38 +157,10 @@ autoboot|start)
 	cp /usr/lib/em* /usr/lib/cpp* /lib
     esac
 
-    echo -n "Starting hotplugging infrastructure... "
-    rm -f /var/run/devmand.pid
-    devmand -d /etc/devmand -d /usr/pkg/etc/devmand &
-    echo "done."
-
     # Things should be alright now.
     ;;
 down|stop)
     sync
-    if [ -f /var/run/devmand.pid ]
-    then
-	kill -INT `cat /var/run/devmand.pid`
-	# without this delay the following will 
-	# be printed in the console
-	# RS: devman not running?
-	sleep 1
-    fi
-    #
-    # usbd needs to be stopped exactly 
-    # at this stage(before stopping devman
-    # and after stopping the services
-    # stated by devmand)
-    if [ -x /usr/pkg/etc/rc.d/usbd ]
-    then 
-	/usr/pkg/etc/rc.d/usbd stop
-    fi
-
-    if [ -x /service/usbd ]
-    then
-	service down usbd
-    fi
-
     # Tell RS server we're going down.
     service shutdown
     ;;
@@ -218,12 +169,9 @@ esac
 # Further initialization.
 test -f /usr/etc/rc && sh /usr/etc/rc $action
 test -f /usr/local/etc/rc && sh /usr/local/etc/rc $action
+test -f /etc/rc.rescue && sh /etc/rc.rescue $action
 
 # Any messages?
-if [ "$action" = start -o "$action" = autoboot ]
-then	if [ -f /etc/issue ]
-	then	cat /etc/issue
-	fi
-fi
+test "$action" = start -a -f /etc/issue && cat /etc/issue
 
 exit 0

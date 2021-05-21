@@ -1,5 +1,3 @@
-/*	$NetBSD: ifaddrs.h,v 1.5 2005/02/03 04:39:32 perry Exp $	*/
-
 /*
  * Copyright (c) 1995, 1999
  *	Berkeley Software Design, Inc.  All rights reserved.
@@ -46,11 +44,18 @@ struct ifaddrs {
 #define	ifa_broadaddr	ifa_dstaddr	/* broadcast address interface */
 #endif
 
-#include <sys/cdefs.h>
+struct ifmaddrs {
+	struct ifmaddrs	*ifma_next;
+	struct sockaddr	*ifma_name;
+	struct sockaddr	*ifma_addr;
+	struct sockaddr	*ifma_lladdr;
+};
 
-__BEGIN_DECLS
-int getifaddrs(struct ifaddrs **);
-void freeifaddrs(struct ifaddrs *);
-__END_DECLS
+extern int getifaddrs(struct ifaddrs **);
+extern void freeifaddrs(struct ifaddrs *);
+extern int getifmaddrs(struct ifmaddrs **);
+extern void freeifmaddrs(struct ifmaddrs *);
 
-#endif /* !_IFADDRS_H_ */
+#define IFF_UP	1	/* Interface is up. */
+
+#endif

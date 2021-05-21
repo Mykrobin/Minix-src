@@ -1,15 +1,13 @@
 mx|minix|minix console:\
 	:am:xn:bs:\
 	:co#80:li#25:\
-	:cr=^M:nw=^M^J:\
-	:bl=^G:\
 	:is=\E[0m:\
 	:cd=\E[0J:cl=\E[H\E[0J:\
 	:so=\E[7m:se=\E[0m:\
 	:us=\E[4m:ue=\E[0m:\
 	:mb=\E[5m:md=\E[1m:\
 	:mr=\E[7m:me=\E[0m:\
-	:sr=\EM:sf=^J:\
+	:sr=\EM:\
 	:cm=\E[%i%d;%dH:\
 	:ho=\E[H:\
 	:al=\E[L:AL=\E[%dL:\
@@ -18,7 +16,7 @@ mx|minix|minix console:\
 	:DL=\E[%dM:dl=\E[M:\
 	:DO=\E[%dB:do=\E[B:\
 	:IC=\E[%d@:ic=\E[@:\
-	:it#8:ta=^I:\
+	:it#8:\
 	:le=^H:LE=\E[%dD:\
 	:nd=\E[C:RI=\E[%dC:\
 	:up=\E[A:UP=\E[%dA:\
@@ -26,15 +24,7 @@ mx|minix|minix console:\
 	:kl=\E[D:kr=\E[C:\
 	:kh=\E[H:kb=^H:\
 	:kD=\177:kI=\E[@:\
-	:kN=\E[U:kP=\E[V:\
-	:@7=\E[Y:\
-	:k1=\E[11~:k2=\E[12~:\
-	:k3=\E[13~:k4=\E[14~:\
-	:k5=\E[15~:k6=\E[17~:\
-	:k7=\E[18~:k8=\E[19~:\
-	:k9=\E[20~:k;=\E[21~:\
-	:Co#8:pa#64:\
-	:AB=\E[4%dm:AF=\E[3%dm:
+	:kN=\E[U:kP=\E[V:
 du|dialup|Dialup line:\
 	:bs:co#80:li#24:
 db|dumb|Really dumb terminal:\
@@ -72,6 +62,7 @@ d0|vt100|vt100-am|vt100am|dec-vt100|dec vt100:\
 # - copied the following screen* entries from
 # http://www.catb.org/terminfo/termtypes.tc.gz
 #	Version 11.0.1
+#	$Date: 2006/03/27 14:16:45 $
 # ("This file deliberately has no copyright.  It belongs to no one and
 # everyone.")
 #
